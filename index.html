@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--<table id="qtable" style="display: none">-->
+    <meta charset="utf-8" />
+    <title>Maze</title>
+    <style>
+    	* { padding: 0; margin: 0; }
+    	canvas { background: #fff; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="480" height="320"></canvas>
+
+
+<!--<script type="module" src='./drawPrep.js'></script>-->
+
+
+
+<script type="module">
+  import { drawQ, drawQuadraticGrid, drawScores, deleteLine, drawAI, intrinsicWidth, intrinsicHeight } from './drawPrep.js';
+  import { mazeFunc, prettyPrintCell, generateWhiteCoordinatesForQuadraticCell, movingStates} from './maze.js';
+  import { depthSearchInit } from './depthfirst.js';
+  import { Qtable } from './ai.js';
+
+  const visibleWidth = intrinsicWidth;
+  const visibleHeight = intrinsicHeight;
+
+
+  let canvas = document.getElementById("myCanvas");
+  let ctx = canvas.getContext("2d");
+ 
+  canvas.style.height = visibleHeight;
+  canvas.style.width = visibleWidth;
+  
+  canvas.height = intrinsicHeight;
+  canvas.width = intrinsicWidth;
+    
+  let maze = mazeFunc();
+
+  depthSearchInit(maze.list);
+  let linesToDelete = maze.list.reduce( (pre, cur) => pre.concat(generateWhiteCoordinatesForQuadraticCell(cur)), []);
+
+  const initialState = 0; // Index of starting Position...
+  //const initialScore = -maze.distanceStateToGoal(initialState);
+  const initialScore = 0;
+
+  let nextState = initialState;
+  let nextScore = initialScore;
+
+  let actionIndex;
+  let actionDirection;
+  let actionChange;
+  
+  let state;
+  let score;
+
+  let Q = Qtable(maze);
+
+  function updateGame (training=false){
+    if (state === maze.size**2-1){
+      nextState= initialState;
+      nextScore = initialScore;
+    }
+    state = nextState;
+    score = nextScore;
+  // Get current state and action to perform
+   ({actionIndex, actionDirection, actionChange} = Q.getAction(state));
+
+    nextState = movingStates(state, actionChange);
+    if (state === maze.size**2-1){
+      nextScore = 100;
+    }
+
+    //nextScore = -maze.distanceStateToGoal(nextState);
+    
+    Q.update(score, nextScore, state, actionIndex, nextState);
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, intrinsicWidth, intrinsicHeight);
+    
+    drawQuadraticGrid(ctx, maze.size, maze.size);
+    //drawScores(ctx, maze.list.map(el => el.getPos()), maze.list.map( el => maze.distanceStateToGoal(el.getIndex())));
+    drawQ(ctx, maze.list.map(el => el.getPos()), i => Q.bestDirections(i));
+    
+    linesToDelete.forEach( (el) => {
+      deleteLine(ctx, el);
+    })
+    
+    drawAI(ctx, {index:state, radius:.3});
+  }
+  
+  // train
+  let train=10000;
+  while (--train>0)
+    updateGame(true);
+    
+  state = nextState = 0;
+  
+  //maze.list.forEach( el => prettyPrintCell(el));
+  setInterval(draw, 10);
+  let updateGameInterval = setInterval(updateGame, 10);
+</script>
+</body>
+</html>
